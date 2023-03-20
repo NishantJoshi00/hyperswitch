@@ -4,6 +4,7 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
+#[cfg(not(target_os = "windows"))]
 use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
@@ -388,6 +389,7 @@ where
     }
 }
 
+#[cfg(not(target_os = "windows"))]
 pub(crate) async fn signal_handler(
     mut sig: signal_hook_tokio::Signals,
     sender: oneshot::Sender<()>,
@@ -412,3 +414,7 @@ pub(crate) async fn signal_handler(
         }
     }
 }
+
+
+#[cfg(target_os = "windows")]
+pub(crate) async fn signal_handler(_sig: common_utils::signals::DummySignal, _sender: oneshot::Sender<()>) {}
