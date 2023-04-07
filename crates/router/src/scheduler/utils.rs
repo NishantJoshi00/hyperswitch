@@ -4,11 +4,8 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
-#[cfg(not(target_os = "windows"))]
-use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{consumer, metrics, process_data, workflows};
@@ -246,7 +243,6 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
 
 pub async fn consumer_operation_handler<E>(
     state: AppState,
-    options: sync::Arc<super::SchedulerOptions>,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
@@ -257,7 +253,7 @@ pub async fn consumer_operation_handler<E>(
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
 
-    match consumer::consumer_operations(&state, &options, &settings).await {
+    match consumer::consumer_operations(&state, &settings).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),
     }
@@ -388,33 +384,3 @@ where
         Ok(())
     }
 }
-
-#[cfg(not(target_os = "windows"))]
-pub(crate) async fn signal_handler(
-    mut sig: signal_hook_tokio::Signals,
-    sender: oneshot::Sender<()>,
-) {
-    if let Some(signal) = sig.next().await {
-        logger::info!(
-            "Received signal: {:?}",
-            signal_hook::low_level::signal_name(signal)
-        );
-        match signal {
-            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
-                Ok(_) => {
-                    logger::info!("Request for force shutdown received")
-                }
-                Err(_) => {
-                    logger::error!(
-                        "The receiver is closed, a termination call might already be sent"
-                    )
-                }
-            },
-            _ => {}
-        }
-    }
-}
-
-
-#[cfg(target_os = "windows")]
-pub(crate) async fn signal_handler(_sig: common_utils::signals::DummySignal, _sender: oneshot::Sender<()>) {}

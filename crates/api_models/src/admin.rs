@@ -345,8 +345,20 @@ pub struct MerchantConnector {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<FrmConfigs>,
+    //contains the frm configs for the merchant... it should be of this format:: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }"
 }
 
+//Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmConfigs {
+    pub frm_enabled_pms: Option<Vec<String>>,
+    pub frm_enabled_pm_types: Option<Vec<String>>,
+    pub frm_enabled_gateways: Option<Vec<String>>,
+    pub frm_action: api_enums::FrmAction, //What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
+    pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+}
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -360,28 +372,30 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
-/// List of enabled and disabled currencies, empty in case all currencies are enabled
-#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AcceptedCurrencies {
-    /// type of accepted currencies (disable_only, enable_only)
-    #[serde(rename = "type")]
-    pub accept_type: String,
-    /// List of currencies of the provided type
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
-    pub list: Option<Vec<api_enums::Currency>>,
+#[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(
+    deny_unknown_fields,
+    tag = "type",
+    content = "list",
+    rename_all = "snake_case"
+)]
+pub enum AcceptedCurrencies {
+    EnableOnly(Vec<api_enums::Currency>),
+    DisableOnly(Vec<api_enums::Currency>),
+    AllAccepted,
 }
 
-/// List of enabled and disabled countries, empty in case all countries are enabled
-#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AcceptedCountries {
-    /// Type of accepted countries (disable_only, enable_only)
-    #[serde(rename = "type")]
-    pub accept_type: String,
-    /// List of countries of the provided type
-    #[schema(example = json!(["FR", "DE","IN"]))]
-    pub list: Option<Vec<String>>,
+#[derive(PartialEq, Eq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(
+    deny_unknown_fields,
+    tag = "type",
+    content = "list",
+    rename_all = "snake_case"
+)]
+pub enum AcceptedCountries {
+    EnableOnly(Vec<api_enums::CountryCode>),
+    DisableOnly(Vec<api_enums::CountryCode>),
+    AllAccepted,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -426,7 +440,7 @@ pub struct MerchantConnectorDetailsWrap {
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
-            "user_defined_field_2": "sample_2", 
+            "user_defined_field_2": "sample_2",
         },
     }"#)]
     pub encoded_data: Option<Secret<String>>,

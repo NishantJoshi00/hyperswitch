@@ -1,3 +1,4 @@
+pub use common_enums::*;
 use utoipa::ToSchema;
 
 #[derive(
@@ -137,6 +138,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]
@@ -266,6 +268,13 @@ pub enum EventType {
     PaymentSucceeded,
     RefundSucceeded,
     RefundFailed,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
 }
 
 #[derive(
@@ -563,6 +572,7 @@ pub enum Connector {
     Mollie,
     Multisafepay,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -578,6 +588,7 @@ impl Connector {
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Globalpay, _)
+                | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
@@ -615,6 +626,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -765,4 +777,87 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::Voided => Self::Cancelled,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStage {
+    PreDispute,
+    #[default]
+    Dispute,
+    PreArbitration,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStatus {
+    #[default]
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    // dispute has been successfully challenged by the merchant
+    DisputeWon,
+    // dispute has been unsuccessfully challenged
+    DisputeLost,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmAction {
+    CancelTxn,
+    AutoRefund,
+    ManualReview,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmPreferredFlowTypes {
+    Pre,
+    Post,
 }
